@@ -7,7 +7,8 @@ const {
     GraphQLString,
     GraphQLSchema,
     GraphQLList,
-    GraphQLInt
+    GraphQLInt,
+    GraphQLNonNull
 } = graphql;
 
 const CityType = new GraphQLObjectType({
@@ -48,7 +49,7 @@ const RestaurantType = new GraphQLObjectType({
             resolve(parent, args) {
                 return knex("reviews")
                 .select("*")
-                .where({"review_id": parent.review_id})
+                .where({"restaurant_id": parent.restaurant_id})
             }
         }
     })
@@ -66,7 +67,7 @@ const UserType = new GraphQLObjectType({
             resolve(parent, args) {
                 return knex("reviews")
                 .select("*")
-                .where({ "review_id": parent.review_id})
+                .where({ "user_id": parent.user_id})
             }
         }
     })
@@ -188,7 +189,7 @@ const Mutation = new GraphQLObjectType({
           }
         },
         resolve(parent, args) {
-          
+            
         }
       },
       // Restaurant POST request
@@ -213,13 +214,19 @@ const Mutation = new GraphQLObjectType({
       addUser: {
         type: UserType,
         args: {
-          name: { type: GraphQLString },
-          avatarURL: { type: GraphQLString },
-          username: { type: GraphQLString}
+          name: { type: new GraphQLNonNull(GraphQLString)},
+          avatarURL: { type: new GraphQLNonNull(GraphQLString) },
+          username: { type: new GraphQLNonNull(GraphQLString)}
           // friends: { type: GraphQLString }
         },
-        resolve(parent, args) {
-          
+        resolve(parent, {name, avatarURL, username}) {
+            return knex
+            .insert({ name, avatarURL, username})
+            .into("users")
+            .returning("*")
+            .then((result) => {
+                return result;
+            })
         }
       },
       // PATCH Add friend to user
@@ -238,12 +245,18 @@ const Mutation = new GraphQLObjectType({
         type: ReviewType,
         args: {
           body: { type: GraphQLString },
-          rating: { type: GraphQLInt },
-          restaurant_id: { type: GraphQLString },
-          user_id: { type: GraphQLString }
+          rating: { type: new GraphQLNonNull(GraphQLInt) },
+          restaurant_id: { type: new GraphQLNonNull(GraphQLString) },
+          user_id: { type: new GraphQLNonNull(GraphQLString) }
         },
-        resolve(parent, args) {
-        
+        resolve(parent, { body, rating, restaurant_id, user_id }) {
+            return knex
+            .insert({ body, rating, restaurant_id, user_id})
+            .into("reviews")
+            .returning("*")
+            .then(result => {
+                return result;
+            })
         }
       },
       // PATCH User
@@ -258,10 +271,32 @@ const Mutation = new GraphQLObjectType({
         resolve(parent, {user_id, username, avatarURL, name}) {
           
         }
-      }
+      },
       // PATCH Review
       // DELETE User
+      deleteUser: {
+          type: UserType,
+          args: {
+              user_id: { type: GraphQLID }
+          },
+          resolve(parent, { user_id }) {
+              return knex("users")
+              .delete()
+              .where({ user_id })
+          }
+      },
       // DELETE Review
+      deleteReview: {
+          type: ReviewType,
+          args: {
+              review_id: { type: GraphQLID }
+          },
+          resolve(parent, { review_id }) {
+              return knex("reviews")
+              .delete()
+              .where({ review_id })
+          }
+      }
     }
   });
   
