@@ -69,6 +69,9 @@ const UserType = new GraphQLObjectType({
                 .select("*")
                 .where({ "user_id": parent.user_id})
             }
+        },
+        friends: {
+          type: new GraphQLList(UserType)
         }
     })
 });
@@ -188,8 +191,14 @@ const Mutation = new GraphQLObjectType({
             type: GraphQLString
           }
         },
-        resolve(parent, args) {
-            
+        resolve(parent, {name}) {
+            return knex
+            .insert({ name })
+            .into("cities")
+            .returning("*")
+            .then((newCity) => {
+              return newCity[0];
+            })
         }
       },
       // Restaurant POST request
@@ -206,8 +215,14 @@ const Mutation = new GraphQLObjectType({
             type: GraphQLString
           }
         },
-        resolve(parent, args) {
-          
+        resolve(parent, {name, cuisine, city_id}) {
+            return knex
+            .insert({name, cuisine, city_id})
+            .into("restaurants")
+            .returning("*")
+            .then((newRestaurant) => {
+              return newRestaurant[0];
+            })
         }
       },
       // User POST request
@@ -237,7 +252,7 @@ const Mutation = new GraphQLObjectType({
           friend_id: { type: GraphQLID }
         },
         resolve(parent, { user_id, friend_id }) {
-
+            
           }
       },
       // Review POST request
@@ -249,13 +264,13 @@ const Mutation = new GraphQLObjectType({
           restaurant_id: { type: new GraphQLNonNull(GraphQLString) },
           user_id: { type: new GraphQLNonNull(GraphQLString) }
         },
-        resolve(parent, { body, rating, restaurant_id, user_id }) {
-            return knex
+        resolve(parent, { body, rating, restaurant_id, user_id }) {  
+          return knex
             .insert({ body, rating, restaurant_id, user_id})
             .into("reviews")
             .returning("*")
             .then(result => {
-                return result;
+                return result[0];
             })
         }
       },
@@ -269,7 +284,12 @@ const Mutation = new GraphQLObjectType({
           name: {type: GraphQLString}
         },
         resolve(parent, {user_id, username, avatarURL, name}) {
-          
+            return knex("users")
+            .where({ user_id })
+            .update({ username, avatarURL, name })
+            .then((updatedUser) => {
+              return updatedUser[0];
+            })
         }
       },
       // PATCH Review
